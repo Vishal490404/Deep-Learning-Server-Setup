@@ -1,0 +1,67 @@
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update && apt install -y \
+    sudo \
+    passwd \
+    vim \
+    locales \
+    build-essential \
+    cmake \
+    git \
+    wget \
+    curl \
+    nano \
+    python3 \
+    python3-pip \
+    libopenmpi-dev \
+    openmpi-bin \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && locale-gen en_US.UTF-8 \
+    && useradd -m -s /bin/bash user \
+    && echo 'user:user@dlserver' | chpasswd \
+    && usermod -aG sudo user \
+    && echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/user \
+    && chmod 0440 /etc/sudoers.d/user
+
+RUN pip3 install --no-cache-dir \
+    'jupyterhub==5.4.2' \
+    'notebook==7.*'
+RUN python3 -m pip install --no-cache-dir \
+    numpy scipy pandas pyarrow scikit-learn \
+    matplotlib seaborn \
+    tqdm tensorboard \
+    pillow \
+    joblib pyyaml omegaconf \
+    mpi4py psutil \
+    ipython ipywidgets \
+    torch torchvision torchaudio \
+    opencv-python
+
+WORKDIR /opt
+COPY nvhpc_2025_253_Linux_x86_64_cuda_12.8.tar.gz /opt
+RUN tar -xzf nvhpc_2025_253_Linux_x86_64_cuda_12.8.tar.gz && \
+    ./nvhpc_2025_253_Linux_x86_64_cuda_12.8/install \
+    -accept-eula -default -installdir /opt/nvidia/hpc_sdk && \
+    rm -rf nvhpc_2025_253_Linux_x86_64_cuda_12.8*
+
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
+
+# Set default compiler environment
+ENV CC=gcc
+ENV CXX=g++
+
+# Set HPC SDK environment
+ENV NVHPC=/opt/nvidia/hpc_sdk
+ENV PATH=$NVHPC/Linux_x86_64/2025/compilers/bin:$PATH
+ENV LD_LIBRARY_PATH=$NVHPC/Linux_x86_64/2025/compilers/lib:$LD_LIBRARY_PATH
+
+ENV HOME=/home/user
+WORKDIR $HOME
+USER user
+
+CMD ["jupyterhub-singleuser"]

@@ -3,3 +3,4 @@
 *.log
 *.sqlite
 jupyterhub_cookie_secret
+*.venv
